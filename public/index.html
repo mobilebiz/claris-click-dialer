@@ -2,6 +2,7 @@
 <html">
 <head>
   <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <!-- ******* Load vonageClientSDK from a CDN ****** -->
   <script src="https://cdn.jsdelivr.net/npm/@vonage/client-sdk@latest/dist/vonageClientSDK.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -22,13 +23,32 @@
     let currentCall;
     let operatorName = 'Operator';  // オペレーター名
     const client = new vonageClientSDK.VonageClient();
-    const ringtone = new Audio('./ringtone.mp3'); // 着信音のファイルパスを指定   
+    const ringtone = new Audio('./ringtone.mp3'); // 着信音のファイルパスを指定
+    ringtone.loop = true; // 着信音をループ再生   
       
+    // 初回ユーザーインタラクションで音声を有効化
+    function enableAudio() {
+      ringtone.play().then(() => {
+        ringtone.pause();
+        ringtone.currentTime = 0;
+        console.log('🐞 Audio enabled');
+        // 一度有効化したらイベントリスナーを削除
+        document.removeEventListener('click', enableAudio);
+        document.removeEventListener('touchstart', enableAudio);
+      }).catch(err => {
+        console.log('🐞 Audio enable failed:', err);
+      });
+    }
+
     // ページのロードが完了したとき
     window.onload = async () => {
       btnCall = document.getElementById('btnCall');
       btnInvite = document.getElementById('btnInvite');
       btnHangup = document.getElementById('btnHangup');
+      
+      // モバイルデバイスの音声有効化のためのイベントリスナー
+      document.addEventListener('click', enableAudio, { once: true });
+      document.addEventListener('touchstart', enableAudio, { once: true });
       
       try {
         // JWTの取得
@@ -82,7 +102,15 @@
           btnCall.hidden = true;
           btnInvite.disabled = false;
           btnInvite.hidden = false;
-          ringtone.play();  // 着信音を再生
+          
+          // 着信音を再生（エラーをキャッチ）
+          ringtone.play().catch(err => {
+            console.log('🐞 Ringtone play failed:', err);
+            // バイブレーションで通知（対応デバイスのみ）
+            if ('vibrate' in navigator) {
+              navigator.vibrate([200, 100, 200, 100, 200]);
+            }
+          });
         });
         
         // クエリーパラメータを取得
@@ -164,10 +192,12 @@
   </script>
 </head>
 <body class="center">
-  <div class="m-0">
-  	<button id="btnCall" class="text-white font-bold bg-blue-400 p-2 rounded" onclick="phoneCall()">発信</button>
-  	<button id="btnInvite" class="text-white font-bold bg-red-400 p-2 rounded" hidden onclick="invite()">着信中...</button>
-  	<button id="btnHangup" class="text-white font-bold bg-red-400 p-2 rounded" hidden onclick="hangup()">切断</button>
+  <div class="flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-md">
+      <button id="btnCall" class="w-full text-white text-lg font-bold bg-blue-500 hover:bg-blue-600 py-4 px-6 rounded-lg shadow-lg transition-colors" onclick="phoneCall()">発信</button>
+      <button id="btnInvite" class="w-full text-white text-lg font-bold bg-red-500 hover:bg-red-600 py-4 px-6 rounded-lg shadow-lg animate-pulse transition-colors" hidden onclick="invite()">着信中...</button>
+      <button id="btnHangup" class="w-full text-white text-lg font-bold bg-red-500 hover:bg-red-600 py-4 px-6 rounded-lg shadow-lg transition-colors" hidden onclick="hangup()">切断</button>
+    </div>
   </div>
 </body>
 </html>
